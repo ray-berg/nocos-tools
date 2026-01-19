@@ -1,0 +1,28 @@
+[Unit]
+Description=Internal Tools Portal API
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/portal/api
+Environment="PATH=/opt/portal/api/venv/bin"
+ExecStart=/opt/portal/api/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 9000
+Restart=always
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/portal
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=portal-api
+
+[Install]
+WantedBy=multi-user.target
