@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
-import { DomainInterrogatorTool, metadata } from './index'
+import { DomainInterrogatorTool, metadata } from '../src/tools/domain-interrogator/index'
 
 // Mock fetch
 const mockFetch = vi.fn()
