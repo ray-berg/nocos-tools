@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     domain_intel_dnssec_check: bool = True
     ipinfo_token: str | None = None
 
+    # Email Reputation Analyzer settings
+    email_rep_cache_ttl_s: int = 300
+    email_rep_dnsbl_timeout_s: float = 3.0
+    email_rep_smtp_timeout_s: float = 5.0
+
     class Config:
         env_prefix = "PORTAL_"
 
