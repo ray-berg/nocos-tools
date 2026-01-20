@@ -213,6 +213,10 @@ class EmailReputationOrchestrator:
         async with self.semaphore:
             return await collector.run()
 
+    async def _noop(self):
+        """Return None as a placeholder coroutine."""
+        return None
+
     async def _run_phase1(self):
         """Run authentication and MX collectors."""
         collectors = [
@@ -235,7 +239,7 @@ class EmailReputationOrchestrator:
                 self._run_with_semaphore(PtrCollector(self.domain, self.sending_ip))
             )
         else:
-            tasks.append(asyncio.coroutine(lambda: None)())  # Placeholder
+            tasks.append(self._noop())  # Placeholder
 
         # DNSBL collector
         tasks.append(
