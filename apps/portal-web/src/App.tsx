@@ -16,6 +16,11 @@ import { TimestampConverterTool } from './tools/timestamp-converter'
 import { SubnetCalculatorTool } from './tools/subnet-calculator'
 import { SslInspectorTool } from './tools/ssl-inspector'
 import { SecurityHeadersTool } from './tools/security-headers'
+import { JsonYamlConverterTool } from './tools/json-yaml-converter'
+import { CsvInspectorTool } from './tools/csv-inspector'
+import { LogParserTool } from './tools/log-parser'
+import { IpLookupTool } from './tools/ip-lookup'
+import { HttpProbeTool } from './tools/http-probe'
 
 export default function App() {
   return (
@@ -34,6 +39,11 @@ export default function App() {
         <Route path="tools/subnet-calculator" element={<SubnetCalculatorTool />} />
         <Route path="tools/ssl-inspector" element={<SslInspectorTool />} />
         <Route path="tools/security-headers" element={<SecurityHeadersTool />} />
+        <Route path="tools/json-yaml-converter" element={<JsonYamlConverterTool />} />
+        <Route path="tools/csv-inspector" element={<CsvInspectorTool />} />
+        <Route path="tools/log-parser" element={<LogParserTool />} />
+        <Route path="tools/ip-lookup" element={<IpLookupTool />} />
+        <Route path="tools/http-probe" element={<HttpProbeTool />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
