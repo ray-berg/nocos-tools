@@ -19,6 +19,7 @@ from app.tools.ssl_inspector import router as ssl_inspector_router  # noqa: F401
 from app.tools.security_headers import router as security_headers_router  # noqa: F401
 from app.tools.ip_lookup import router as ip_lookup_router  # noqa: F401
 from app.tools.http_probe import router as http_probe_router  # noqa: F401
+from app.tools.traceroute import router as traceroute_router  # noqa: F401
 
 __all__ = [
     "url_inspector_router",
@@ -28,4 +29,5 @@ __all__ = [
     "security_headers_router",
     "ip_lookup_router",
     "http_probe_router",
+    "traceroute_router",
 ]

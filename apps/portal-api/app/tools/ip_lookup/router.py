@@ -19,7 +19,7 @@ from .models import (
     NetworkInfo,
 )
 
-router = APIRouter(prefix="/ip-lookup", tags=["ip-lookup"])
+router = APIRouter()
 
 
 def classify_ip(ip_str: str) -> IPTypeInfo:

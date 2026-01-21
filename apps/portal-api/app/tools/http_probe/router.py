@@ -18,7 +18,7 @@ from .models import (
     ResponseInfo,
 )
 
-router = APIRouter(prefix="/http-probe", tags=["http-probe"])
+router = APIRouter()
 
 # Maximum response body to preview
 MAX_BODY_PREVIEW = 4096
