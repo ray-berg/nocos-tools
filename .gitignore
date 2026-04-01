@@ -53,3 +53,4 @@ logs/
 .cache/
 di.md
 mr.md
+*.tsbuildinfo
