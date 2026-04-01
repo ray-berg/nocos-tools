@@ -5,10 +5,10 @@ import type { ToolMetadata } from '@/types/tool'
 export const metadata: ToolMetadata = {
   id: 'ip-lookup',
   name: 'IP/ASN Lookup',
-  description: 'IP address intelligence, geolocation, and ASN information',
+  description: 'IP address intelligence, geolocation, ASN, WHOIS, and threat intelligence',
   category: 'Network',
   nav_order: 45,
-  tags: ['ip', 'asn', 'geolocation', 'whois', 'ptr', 'reverse-dns'],
+  tags: ['ip', 'asn', 'geolocation', 'whois', 'ptr', 'reverse-dns', 'threat', 'abuse', 'blocklist'],
   has_backend: true,
 }
 
@@ -49,12 +49,56 @@ interface NetworkInfo {
   is_tor?: boolean
 }
 
+interface WhoisContact {
+  name?: string
+  email?: string
+  phone?: string
+  address?: string
+  organization?: string
+}
+
+interface WhoisInfo {
+  network_name?: string
+  network_cidr?: string
+  network_range?: string
+  description?: string
+  country?: string
+  registrant?: WhoisContact
+  abuse_contact?: WhoisContact
+  created_date?: string
+  updated_date?: string
+  registry?: string
+  raw_whois?: string
+}
+
+interface AbuseReport {
+  reported_at?: string
+  categories: string[]
+  comment?: string
+  reporter_country?: string
+}
+
+interface ThreatIntelligence {
+  abuse_confidence_score?: number
+  total_reports?: number
+  num_distinct_users?: number
+  last_reported_at?: string
+  abuse_categories: string[]
+  recent_reports: AbuseReport[]
+  is_whitelisted?: boolean
+  blocklist_hits: string[]
+  threat_score?: number
+  threat_level?: string
+}
+
 interface IPLookupResult {
   ip: string
   ip_type: IPTypeInfo
   geolocation?: GeoLocation
   asn?: ASNInfo
   network?: NetworkInfo
+  whois?: WhoisInfo
+  threat_intelligence?: ThreatIntelligence
   error?: string
 }
 
@@ -63,6 +107,7 @@ export function IpLookupTool() {
   const [result, setResult] = useState<IPLookupResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showRawWhois, setShowRawWhois] = useState(false)
 
   const handleLookup = async () => {
     if (!ip.trim()) return
@@ -70,6 +115,7 @@ export function IpLookupTool() {
     setLoading(true)
     setError(null)
     setResult(null)
+    setShowRawWhois(false)
 
     try {
       const response = await fetch('/api/tools/ip-lookup/run', {
@@ -119,6 +165,42 @@ export function IpLookupTool() {
       labels.push('Public')
     }
     return labels.join(' • ')
+  }
+
+  const getThreatLevelColor = (level?: string) => {
+    switch (level) {
+      case 'critical':
+        return 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30'
+      case 'high':
+        return 'text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30'
+      case 'medium':
+        return 'text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30'
+      default:
+        return 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30'
+    }
+  }
+
+  const getThreatScoreColor = (score?: number) => {
+    if (score === undefined) return 'bg-gray-200 dark:bg-gray-700'
+    if (score >= 75) return 'bg-red-500'
+    if (score >= 50) return 'bg-orange-500'
+    if (score >= 25) return 'bg-yellow-500'
+    return 'bg-green-500'
+  }
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return null
+    try {
+      return new Date(dateStr).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    } catch {
+      return dateStr
+    }
   }
 
   return (
@@ -205,11 +287,20 @@ export function IpLookupTool() {
                     {getIpTypeLabel(result.ip_type)}
                   </p>
                 </div>
-                {result.geolocation?.country_code && (
-                  <span className="text-4xl" title={result.geolocation.country}>
-                    {getFlagEmoji(result.geolocation.country_code)}
-                  </span>
-                )}
+                <div className="flex items-center gap-4">
+                  {result.threat_intelligence && (
+                    <div className="text-right">
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getThreatLevelColor(result.threat_intelligence.threat_level)}`}>
+                        {result.threat_intelligence.threat_level?.toUpperCase() || 'UNKNOWN'} RISK
+                      </span>
+                    </div>
+                  )}
+                  {result.geolocation?.country_code && (
+                    <span className="text-4xl" title={result.geolocation.country}>
+                      {getFlagEmoji(result.geolocation.country_code)}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -217,6 +308,132 @@ export function IpLookupTool() {
             {result.error && (
               <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg text-yellow-700 dark:text-yellow-400">
                 {result.error}
+              </div>
+            )}
+
+            {/* Threat Intelligence Section */}
+            {result.threat_intelligence && (
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  Threat Intelligence
+                </h4>
+
+                {/* Threat Score Bar */}
+                <div className="mb-4">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-500">Threat Score</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">
+                      {result.threat_intelligence.threat_score ?? 0}/100
+                    </span>
+                  </div>
+                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full ${getThreatScoreColor(result.threat_intelligence.threat_score)} transition-all`}
+                      style={{ width: `${result.threat_intelligence.threat_score ?? 0}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* AbuseIPDB Stats */}
+                  {result.threat_intelligence.abuse_confidence_score !== undefined && (
+                    <div className="space-y-2">
+                      <h5 className="text-xs font-medium text-gray-500 uppercase">AbuseIPDB</h5>
+                      <dl className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <dt className="text-gray-500">Confidence Score</dt>
+                          <dd className={`font-medium ${result.threat_intelligence.abuse_confidence_score > 50 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}>
+                            {result.threat_intelligence.abuse_confidence_score}%
+                          </dd>
+                        </div>
+                        {result.threat_intelligence.total_reports !== undefined && (
+                          <div className="flex justify-between">
+                            <dt className="text-gray-500">Total Reports</dt>
+                            <dd className="text-gray-900 dark:text-gray-100">{result.threat_intelligence.total_reports}</dd>
+                          </div>
+                        )}
+                        {result.threat_intelligence.num_distinct_users !== undefined && (
+                          <div className="flex justify-between">
+                            <dt className="text-gray-500">Distinct Reporters</dt>
+                            <dd className="text-gray-900 dark:text-gray-100">{result.threat_intelligence.num_distinct_users}</dd>
+                          </div>
+                        )}
+                        {result.threat_intelligence.last_reported_at && (
+                          <div className="flex justify-between">
+                            <dt className="text-gray-500">Last Reported</dt>
+                            <dd className="text-gray-900 dark:text-gray-100 text-xs">
+                              {formatDate(result.threat_intelligence.last_reported_at)}
+                            </dd>
+                          </div>
+                        )}
+                        {result.threat_intelligence.is_whitelisted && (
+                          <div className="flex justify-between">
+                            <dt className="text-gray-500">Whitelisted</dt>
+                            <dd className="text-green-600 dark:text-green-400">Yes</dd>
+                          </div>
+                        )}
+                      </dl>
+                    </div>
+                  )}
+
+                  {/* Blocklist Hits */}
+                  <div className="space-y-2">
+                    <h5 className="text-xs font-medium text-gray-500 uppercase">Blocklist Check</h5>
+                    {result.threat_intelligence.blocklist_hits.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {result.threat_intelligence.blocklist_hits.map((bl, i) => (
+                          <span key={i} className="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs rounded">
+                            {bl}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-green-600 dark:text-green-400">Not found on checked blocklists</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Abuse Categories */}
+                {result.threat_intelligence.abuse_categories.length > 0 && (
+                  <div className="mt-4">
+                    <h5 className="text-xs font-medium text-gray-500 uppercase mb-2">Reported Categories</h5>
+                    <div className="flex flex-wrap gap-2">
+                      {result.threat_intelligence.abuse_categories.map((cat, i) => (
+                        <span key={i} className="px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 text-xs rounded">
+                          {cat}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recent Reports */}
+                {result.threat_intelligence.recent_reports.length > 0 && (
+                  <div className="mt-4">
+                    <h5 className="text-xs font-medium text-gray-500 uppercase mb-2">Recent Reports</h5>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {result.threat_intelligence.recent_reports.map((report, i) => (
+                        <div key={i} className="text-xs bg-gray-50 dark:bg-gray-900 p-2 rounded">
+                          <div className="flex justify-between text-gray-500 mb-1">
+                            <span>{formatDate(report.reported_at)}</span>
+                            {report.reporter_country && <span>{getFlagEmoji(report.reporter_country)}</span>}
+                          </div>
+                          {report.categories.length > 0 && (
+                            <div className="text-gray-700 dark:text-gray-300 mb-1">
+                              {report.categories.join(', ')}
+                            </div>
+                          )}
+                          {report.comment && (
+                            <div className="text-gray-500 italic truncate">{report.comment}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -382,6 +599,110 @@ export function IpLookupTool() {
                 </div>
               )}
 
+              {/* WHOIS Info */}
+              {result.whois && (
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 md:col-span-2">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    WHOIS Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <dl className="space-y-2 text-sm">
+                      {result.whois.network_name && (
+                        <div className="flex justify-between">
+                          <dt className="text-gray-500">Network Name</dt>
+                          <dd className="text-gray-900 dark:text-gray-100 font-mono">
+                            {result.whois.network_name}
+                          </dd>
+                        </div>
+                      )}
+                      {result.whois.network_cidr && (
+                        <div className="flex justify-between">
+                          <dt className="text-gray-500">CIDR</dt>
+                          <dd className="text-gray-900 dark:text-gray-100 font-mono">
+                            {result.whois.network_cidr}
+                          </dd>
+                        </div>
+                      )}
+                      {result.whois.description && (
+                        <div className="flex justify-between">
+                          <dt className="text-gray-500">Description</dt>
+                          <dd className="text-gray-900 dark:text-gray-100 text-right max-w-[200px] truncate" title={result.whois.description}>
+                            {result.whois.description}
+                          </dd>
+                        </div>
+                      )}
+                      {result.whois.registry && (
+                        <div className="flex justify-between">
+                          <dt className="text-gray-500">Registry</dt>
+                          <dd className="text-gray-900 dark:text-gray-100 uppercase">
+                            {result.whois.registry}
+                          </dd>
+                        </div>
+                      )}
+                      {result.whois.country && (
+                        <div className="flex justify-between">
+                          <dt className="text-gray-500">Country</dt>
+                          <dd className="text-gray-900 dark:text-gray-100">
+                            {result.whois.country}
+                          </dd>
+                        </div>
+                      )}
+                    </dl>
+                    <dl className="space-y-2 text-sm">
+                      {result.whois.registrant?.organization && (
+                        <div className="flex justify-between">
+                          <dt className="text-gray-500">Registrant Org</dt>
+                          <dd className="text-gray-900 dark:text-gray-100">
+                            {result.whois.registrant.organization}
+                          </dd>
+                        </div>
+                      )}
+                      {result.whois.abuse_contact?.email && (
+                        <div className="flex justify-between">
+                          <dt className="text-gray-500">Abuse Contact</dt>
+                          <dd className="text-gray-900 dark:text-gray-100 font-mono text-xs">
+                            {result.whois.abuse_contact.email}
+                          </dd>
+                        </div>
+                      )}
+                      {result.whois.created_date && (
+                        <div className="flex justify-between">
+                          <dt className="text-gray-500">Created</dt>
+                          <dd className="text-gray-900 dark:text-gray-100">
+                            {result.whois.created_date}
+                          </dd>
+                        </div>
+                      )}
+                      {result.whois.updated_date && (
+                        <div className="flex justify-between">
+                          <dt className="text-gray-500">Updated</dt>
+                          <dd className="text-gray-900 dark:text-gray-100">
+                            {result.whois.updated_date}
+                          </dd>
+                        </div>
+                      )}
+                    </dl>
+                  </div>
+
+                  {/* Raw WHOIS toggle */}
+                  {result.whois.raw_whois && (
+                    <div className="mt-4">
+                      <button
+                        onClick={() => setShowRawWhois(!showRawWhois)}
+                        className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        {showRawWhois ? 'Hide' : 'Show'} Raw WHOIS
+                      </button>
+                      {showRawWhois && (
+                        <pre className="mt-2 p-3 bg-gray-50 dark:bg-gray-900 rounded text-xs font-mono overflow-x-auto max-h-64 overflow-y-auto text-gray-700 dark:text-gray-300">
+                          {result.whois.raw_whois}
+                        </pre>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* IP Type Details */}
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                 <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
@@ -431,7 +752,6 @@ export function IpLookupTool() {
 }
 
 function getFlagEmoji(countryCode: string): string {
-  // Convert country code to flag emoji
   const codePoints = countryCode
     .toUpperCase()
     .split('')

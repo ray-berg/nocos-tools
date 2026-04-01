@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     email_rep_dnsbl_timeout_s: float = 3.0
     email_rep_smtp_timeout_s: float = 5.0
 
+    # IP Lookup settings
+    ip_lookup_cache_ttl_s: int = 600
+    ip_lookup_whois_timeout_s: float = 10.0
+    abuseipdb_api_key: str | None = None  # Optional: enables threat intelligence
+
     class Config:
         env_prefix = "PORTAL_"
 
